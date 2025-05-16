@@ -18,6 +18,9 @@ black
 flake8
 mypy
 isort
+opencv-python
+decord
+moviepy=1.0.3
 
 # Optional dependencies for specific features
 # For audio processing
