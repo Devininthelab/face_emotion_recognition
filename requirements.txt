@@ -1,0 +1,24 @@
+torch>=2.6.0
+notebook 
+ipykernel
+matplotlib
+numpy
+pandas
+librosa
+scipy
+seaborn
+torchinfo
+transformers
+datasets
+tqdm
+wandb
+scikit-learn
+pre-commit
+black
+flake8
+mypy
+isort
+
+# Optional dependencies for specific features
+# For audio processing
+torchaudio
