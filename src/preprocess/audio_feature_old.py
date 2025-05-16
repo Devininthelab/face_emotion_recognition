@@ -92,6 +92,19 @@ def format_frames(frame, output_size):
 def uniform_temporal_subsample(
     x, num_samples, clip_idx, total_clips, frame_rate=1, temporal_dim=-4
 ):
+    """
+    Uniformly sample num_samples frames from the input tensor x.
+    Args:
+        x (tf.Tensor): Input tensor of shape (T, H, W, C) or (N, T, H, W, C).
+        num_samples (int): Number of frames to sample.
+        clip_idx (int): Index of the clip to sample.
+        total_clips (int): Total number of clips.
+        frame_rate (int): Frame rate for sampling.
+        temporal_dim (int): Temporal dimension index.
+    Returns:
+        tf.Tensor: Sampled frames of shape (num_samples, H, W, C).
+    """
+    if len(x.shape) == 5:
     t = tf.shape(x)[temporal_dim]
     max_offset = t - num_samples * frame_rate
     step = max_offset // total_clips
@@ -109,6 +122,17 @@ def uniform_temporal_subsample(
 def clip_generator(
     image, num_frames=32, frame_rate=1, num_clips=1, crop_size=224
 ):
+    """
+    Generate clips from the input video tensor.
+    Args:
+        image (tf.Tensor): Input video tensor of shape (T, H, W, C).
+        num_frames (int): Number of frames to sample.
+        frame_rate (int): Frame rate for sampling.
+        num_clips (int): Number of clips to generate.
+        crop_size (int): Size of the cropped frames.
+    Returns:
+        tf.Tensor: Generated clips of shape (num_clips, num_frames, crop_size, crop_size, 3).
+    """
     clips_list = []
     for i in range(num_clips):
         frame = uniform_temporal_subsample(
@@ -123,6 +147,14 @@ def clip_generator(
     return video
 
 def video_audio(path, save_path):
+    """
+    Process video and audio files, extract features, and save them.
+    Args:
+        path (str): Path to the input video directory.
+        save_path (str): Path to save the processed video and audio files.
+    Returns:
+        int: Number of processed files.
+    """
     n = 1
 
     for class_name in os.listdir(path):
@@ -153,7 +185,7 @@ def video_audio(path, save_path):
             step=int((len(Audiodata))/9) - 1
             tx=np.arange(0,len(Audiodata),step)
             
-        # First Spectrogram Late Face
+            # First Spectrogram Late Face
             for i in range(8):
                 signal=Audiodata[tx[i]:tx[i+2]]
                 mfcc=MFCC(signal,fs)
