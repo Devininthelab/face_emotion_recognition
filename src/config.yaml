@@ -1,0 +1,4 @@
+data_dir: ../data
+feature_dir: /home/varaudio/Thang/emotion_recognition/features
+meta_data: /home/varaudio/Thang/emotion_recognition/src/preprocess/metadata/video_all_ravdess_data.jsonl
+extracted_feature_metadata: /home/varaudio/Thang/emotion_recognition/src/preprocess/metadata/extracted_feature_metadata.jsonl

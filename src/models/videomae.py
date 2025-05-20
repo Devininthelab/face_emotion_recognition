@@ -52,7 +52,7 @@ class ERVideoMAE(nn.Module):
     
     def forward(self, x):
         '''
-        x: A list of images
+        x: A list of images with shape: [image_0, image_2, ..., image_15]; each image is of shape (3, 224, 224)
         '''
         # after image processor, will be of shape torch.Size([1, 16, 3, 224, 224])
         # video of shape (16, 360, 640, 3) -> time, height, width, channels add to list to make [bs, 16, 360, 640, 3]

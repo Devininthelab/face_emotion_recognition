@@ -1,93 +1,95 @@
-# import av
-# import torch
-# import numpy as np
-
-# from transformers import AutoImageProcessor, VideoMAEForVideoClassification, VideoMAEConfig
-# from huggingface_hub import hf_hub_download
-
-# np.random.seed(0)
-
-
-# def read_video_pyav(container, indices):
-#     '''
-#     Decode the video with PyAV decoder.
-#     Args:
-#         container (`av.container.input.InputContainer`): PyAV container.
-#         indices (`List[int]`): List of frame indices to decode.
-#     Returns:
-#         result (np.ndarray): np array of decoded frames of shape (num_frames, height, width, 3).
-#     '''
-#     frames = []
-#     container.seek(0)
-#     start_index = indices[0]
-#     end_index = indices[-1]
-#     for i, frame in enumerate(container.decode(video=0)):
-#         if i > end_index:
-#             break
-#         if i >= start_index and i in indices:
-#             frames.append(frame)
-#     return np.stack([x.to_ndarray(format="rgb24") for x in frames])
-
-
-# def sample_frame_indices(clip_len, frame_sample_rate, seg_len):
-#     '''
-#     Sample a given number of frame indices from the video.
-#     Args:
-#         clip_len (`int`): Total number of frames to sample.
-#         frame_sample_rate (`int`): Sample every n-th frame.
-#         seg_len (`int`): Maximum allowed index of sample's last frame.
-#     Returns:
-#         indices (`List[int]`): List of sampled frame indices
-#     '''
-#     converted_len = int(clip_len * frame_sample_rate)
-#     end_idx = np.random.randint(converted_len, seg_len)
-#     start_idx = end_idx - converted_len
-#     indices = np.linspace(start_idx, end_idx, num=clip_len)
-#     indices = np.clip(indices, start_idx, end_idx - 1).astype(np.int64)
-#     return indices
-
-
-# # video clip consists of 300 frames (10 seconds at 30 FPS)
-# file_path = hf_hub_download(
-#     repo_id="nielsr/video-demo", filename="eating_spaghetti.mp4", repo_type="dataset"
-# )
-# container = av.open(file_path)
-
-# # sample 16 frames
-# indices = sample_frame_indices(clip_len=16, frame_sample_rate=1, seg_len=container.streams.video[0].frames)
-# video = read_video_pyav(container, indices)
-
-
-
-# image_processor = AutoImageProcessor.from_pretrained("MCG-NJU/videomae-base-finetuned-kinetics")
-# model = VideoMAEForVideoClassification.from_pretrained("MCG-NJU/videomae-base-finetuned-kinetics")
-
-# print((video.shape))
-# inputs = image_processor(list(video), return_tensors="pt")
-# print(inputs.pixel_values.shape)  # (batch_size, num_frames, height, width, channels)
-
-# with torch.no_grad():
-#     outputs = model(**inputs)
-#     #print(outputs.logits.shape)  # (batch_size, num_classes)
-#     logits = outputs.logits
-#     print(logits.shape)  # (batch_size, num_classes)
-
-# # model predicts one of the 400 Kinetics-400 classes
-# predicted_label = logits.argmax(-1).item()
-
-
 from models.videomae import ERVideoMAE
 import torch
 import torch.nn as nn
 import numpy as np
+import yaml
+import os
+import json
+
+from preprocess.audio_feature import extract_frames_and_mfccs
+from torch.utils.data import Dataset, DataLoader
+
+from tqdm import tqdm
+
+from dataset.loader import EmotionDataset, collate_fn
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+models = ERVideoMAE(model_name="MCG-NJU/videomae-base-finetuned-kinetics", device=device, num_frames=16, num_classes=8).to(device)
+# videos = []
+# for i in range(16):
+#     video = list(torch.randint(0, 256,  (16, 3, 13, 57), dtype=torch.uint8))
+#     videos.append(video)
 
 
-models = ERVideoMAE(model_name="MCG-NJU/videomae-base-finetuned-kinetics", device="cuda", num_frames=16, num_classes=8).to("cuda")
-video = np.random.randint(0, 256, (16, 3, 224, 224))
 
-models.eval()
-with torch.no_grad():
-    logits = models(video)
-    print(logits.shape)  # (batch_size, num_classes)
-    predicted_label = logits.argmax(-1).item()
-    print(predicted_label)
+# with torch.no_grad():
+#     logits = models(videos)
+#     print(logits.shape)  # (batch_size, num_classes)
+#     predicted_label = logits.argmax(dim=-1)
+#     print(predicted_label)
+#     print(logits)
+
+##################################################################    
+# Loading config files:
+with open('config.yaml', 'r') as file:
+        config = yaml.safe_load(file)
+##################################################################
+
+def create_features():
+    if os.path.exists(config["feature_dir"]):
+        print(f"Loading features from {config['feature_dir']}")
+        return
+    else:
+        print(f"Extracting features to {config['feature_dir']}") 
+        os.makedirs(config["feature_dir"], exist_ok=True)
+
+
+    meta_data = config["meta_data"]
+
+    video_paths = []
+    labels = []
+    with open(meta_data, 'r', encoding='utf-8') as file:
+        for line in file:
+            obj = json.loads(line)
+            if obj["modality"] == 1: # videos contains both visual and audio
+                video_paths.append(obj["path"])
+                labels.append(obj["label"])
+
+
+    os.makedirs(os.path.dirname(config["extracted_feature_metadata"]), exist_ok=True) if os.path.dirname(config["extracted_feature_metadata"]) else None
+
+    with open(config["extracted_feature_metadata"], 'w', encoding='utf-8') as meta_file:
+        for p, l in tqdm(zip(video_paths, labels), total=len(video_paths)):
+            video_path = p
+            label = l
+
+            file_name = os.path.split(video_path)[-1].split(".")[0]
+            feature_path = os.path.join(config["feature_dir"], file_name)
+            if os.path.exists(feature_path):
+                print(f"Feature already exists for {file_name}, skipping...")
+                continue
+            os.makedirs(feature_path, exist_ok=True)    
+            extract_frames_and_mfccs(video_path, feature_path, num_segments=8)
+
+            meta_entry = {
+                    "feature_path": feature_path,
+                    "label": label
+                }
+            meta_file.write(json.dumps(meta_entry) + '\n')
+
+dataset = EmotionDataset(config["extracted_feature_metadata"])
+dataloader = DataLoader(dataset, batch_size=32, shuffle=False, collate_fn=collate_fn)
+
+for i, (videos, labels) in enumerate(tqdm(dataloader)):
+    # images: List of batches of images
+    # labels: List of corresponding labels
+    # Process the images and labels as needed
+    
+    labels.to(device)
+    with torch.no_grad():
+        logits = models(videos)
+        print(logits.shape)  # (batch_size, num_classes)
+        predicted_label = logits.argmax(dim=-1)
+        print(predicted_label)
+        print(logits)
+    break

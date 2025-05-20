@@ -105,7 +105,7 @@ def uniform_temporal_subsample(
         tf.Tensor: Sampled frames of shape (num_samples, H, W, C).
     """
     if len(x.shape) == 5:
-    t = tf.shape(x)[temporal_dim]
+        t = tf.shape(x)[temporal_dim]
     max_offset = t - num_samples * frame_rate
     step = max_offset // total_clips
     offset = clip_idx * step

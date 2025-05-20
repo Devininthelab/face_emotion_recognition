@@ -4,6 +4,7 @@ import shutil
 import numpy as np
 import pandas as pd
 import torch
+import librosa
 
 import matplotlib.pyplot as plt
 from decord import VideoReader
@@ -13,7 +14,9 @@ from scipy.io import wavfile # scipy library to read wav files
 import numpy as np
 from scipy.fftpack import dct
 from matplotlib import pyplot as plt
+import matplotlib.cm as cm
 from PIL import Image
+from io import BytesIO
 
 INPUT_SIZE = 224
 NUM_FRAME = 8
@@ -21,7 +24,7 @@ SAMPLING_RATE = 6
 
 # Notes: No normalization is done for the video frames, values are in the range [0, 255] as the torch version is different from tf
 
-
+# There is probably typo in the orginal code, as the frame stride is 0.0001, which is not possible
 def normalize_audio(audio):
     """
     Normalize the audio signal to the range [-1, 1].
@@ -128,4 +131,72 @@ def read_video(file_path):
         output_size=(INPUT_SIZE, INPUT_SIZE)
     )
 
+
+############ Utils ######################################3
+def save_frame_as_uint8_image(frame, filename):
+    # Convert RGB frame (float) to uint8 and save
+    frame_uint8 = np.clip(frame * 255, 0, 255).astype(np.uint8) if frame.dtype == np.float32 or frame.max() <= 1 else frame.astype(np.uint8)
+    frame_bgr = cv2.cvtColor(frame_uint8, cv2.COLOR_RGB2BGR)
+    cv2.imwrite(filename, frame_bgr)
+
+def save_mfcc_as_rgb_uint8_image(audio, sr, output_path, cmap='viridis'):
+    audio = normalize_audio(audio)
+    mfcc = MFCC(audio, sr)
+    
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(4, 4))
+    cax = ax.matshow(
+        np.transpose(mfcc),
+        interpolation="nearest",
+        aspect="auto",
+        cmap=plt.cm.afmhot_r,
+        origin="lower",
+    )
+    plt.axis('off')
+    buf = BytesIO()
+    fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
+    plt.close(fig)  # Close the figure to avoid displaying it
+    buf.seek(0)
+
+    img = Image.open(buf).convert('RGB')
+    img.save(output_path)
+
+    # # Step 2: Normalize MFCC to 0-1 for colormap
+    # mfcc_min = mfcc.min()
+    # mfcc_max = mfcc.max()
+    # mfcc_norm = (mfcc - mfcc_min) / (mfcc_max - mfcc_min + 1e-6)  # Prevent div by 0
+
+    # # Step 3: Map to RGB using a colormap (matplotlib)
+    # colormap = cm.get_cmap(cmap)
+    # mfcc_rgb = colormap(mfcc_norm)[:, :, :3]  # Drop alpha channel if present
+
+    # # Step 4: Convert to uint8 (0-255)
+    # mfcc_rgb_uint8 = (mfcc_rgb * 255).astype(np.uint8)
+
+    # # Step 5: Convert to PIL image and save
+    # img = Image.fromarray(mfcc_rgb_uint8)
+    # img.save(output_path)
+
+def extract_frames_and_mfccs(video_path, output_dir, num_segments=8):
+    os.makedirs(output_dir, exist_ok=True)
+
+    clip = VideoFileClip(video_path)
+    duration = clip.duration
+    audio, sr = librosa.load(video_path, sr=48000)
+
+    segment_duration = duration / num_segments
+
+    for i in range(num_segments):
+        time = (i + 0.5) * segment_duration
+        frame = clip.get_frame(time)
+        frame_filename = os.path.join(output_dir, f"frame_{i}.jpg")
+        save_frame_as_uint8_image(frame, frame_filename)
+
+        # Extract MFCC for the segment
+        start_sample = int(i * segment_duration * sr)
+        end_sample = int((i + 1) * segment_duration * sr)
+        segment_audio = audio[start_sample:end_sample]
+        mfcc_filename = os.path.join(output_dir, f"mfcc_{i}.jpg")
+        save_mfcc_as_rgb_uint8_image(segment_audio, sr, mfcc_filename, cmap='viridis')
+    clip.close()
+    return output_dir
 
