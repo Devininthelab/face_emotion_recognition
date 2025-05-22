@@ -42,8 +42,22 @@ class EmotionDataset(Dataset):
         image_files = sorted([
             f for f in os.listdir(feature_path)
             if f.lower().endswith(('.png', '.jpg', '.jpeg'))
-        ], reverse=True)
+        ], reverse=False) # SETTING reverse to True to FSLF; 
+
+        ####################
+        # Perform OFOS: one facial one spectrogram
+        all_frames = sorted([f for f in image_files if f.startswith("frame_")], key=lambda x: int(x.split("_")[1].split(".")[0]))
+        all_mfccs = sorted([f for f in image_files if f.startswith("mfcc_")], key=lambda x: int(x.split("_")[1].split(".")[0]))
+
+        interleaved_files = []
+        for f, m in zip(all_frames, all_mfccs):
+            interleaved_files.extend([f, m])
+
+        image_files = interleaved_files
+        #####################
+
         
+
         images: List[np.ndarray] = []
         for img_file in image_files:
             img_path = os.path.join(feature_path, img_file)

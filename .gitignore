@@ -10,3 +10,10 @@ __pycache__/
 *.so
 
 features/
+
+/src/wandb/
+/src/checkpoints/
+/src/**/*.pt
+/src/**/*.pth
+
+*.log
