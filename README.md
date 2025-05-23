@@ -8,6 +8,9 @@ Using VideoMAE preatrained for emotion recognition classification.
 - Uniformly divide an audio clip into 16 parts.
 - EXtract MFCC + facial frame for each part
 
+# EDA
+- The result for EDA is under `src/preprocess/preprocess.ipynb`
+
 ## Installation
 
 ```bash
