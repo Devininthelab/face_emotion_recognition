@@ -23,6 +23,7 @@ class Trainer:
         save_path=None,
         run_name="run",
         num_workers=2,
+        export_to_onnx=False
     ):
         self.model = model
         self.train_dataset = train_dataset
@@ -37,7 +38,7 @@ class Trainer:
         self.best_model_path = None
         self.model.to(self.device)
         self.num_workers = num_workers
-
+        self.export_to_onnx = export_to_onnx
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr, weight_decay=weight_decay)
         self.criterion = nn.CrossEntropyLoss()
 
@@ -101,7 +102,7 @@ class Trainer:
             if self.eval_loader:
                 self.evaluate(epoch)
         
-        if self.best_model_path:
+        if self.best_model_path and self.export_to_onnx:
             self.export_to_onnx()
 
         

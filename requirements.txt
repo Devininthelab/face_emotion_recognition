@@ -21,6 +21,8 @@ isort
 opencv-python
 decord
 moviepy=1.0.3
+onnx
+onnxruntime
 
 # Optional dependencies for specific features
 # For audio processing

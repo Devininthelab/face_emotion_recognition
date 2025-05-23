@@ -136,7 +136,7 @@ def main():
     )
     logging.info("Loading dataset...")
     
-    
+    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
     dataset = EmotionDataset(config["extracted_feature_metadata"])
 
     train_size = int(0.8 * len(dataset))
@@ -171,7 +171,6 @@ def main():
 if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     #create_features()
-    main() # python main.py --epochs 50 --batch_size 16 --num_workers 2 --seed 42 --learning_rate 1e-4 --weight_decay 0.05 --save_path ./checkpoints --run_name ffls
+    main() # python main.py --epochs 50 --batch_size 16 --num_workers 2 --seed 42 --learning_rate 1e-4 --weight_decay 0.05 --save_path ./checkpoints --run_name random_shuffle
 
-    
     
