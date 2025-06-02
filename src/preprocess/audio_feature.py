@@ -39,6 +39,11 @@ def normalize_audio(audio):
 def MFCC(signal, sample_rate):
     """
     Compute the MFCC features from the audio signal.
+    Dense overlapp: # 25 ms, 0.1 ms stride
+    Use hanning window to reduce the edge effects.
+    Number of FFT: 512
+    Number of MEL filters: 40
+    Number of MFCC coefficients: 13
     Args:
         signal (numpy.ndarray): The audio signal.
         sample_rate (int): The sample rate of the audio signal.
